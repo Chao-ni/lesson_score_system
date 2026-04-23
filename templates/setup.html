@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>评分启动选择</title>
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:#f3f5f7;
+color:#222;
+}
+
+.wrap{
+min-height:100vh;
+display:flex;
+align-items:center;
+justify-content:center;
+padding:24px;
+box-sizing:border-box;
+}
+
+.card{
+width:min(720px, 100%);
+background:white;
+border-radius:14px;
+box-shadow:0 12px 30px rgba(0,0,0,.08);
+padding:28px;
+box-sizing:border-box;
+}
+
+h1{
+margin:0 0 12px;
+font-size:28px;
+}
+
+.intro{
+margin:0 0 20px;
+color:#555;
+line-height:1.7;
+}
+
+.status{
+margin:0 0 24px;
+padding:14px 16px;
+background:#f5f9ff;
+border-left:4px solid #409EFF;
+border-radius:6px;
+line-height:1.8;
+}
+
+.actions{
+display:grid;
+grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+gap:16px;
+}
+
+.option{
+border:1px solid #dde4ec;
+border-radius:10px;
+padding:18px;
+background:#fbfcfd;
+}
+
+.option h2{
+margin:0 0 10px;
+font-size:20px;
+}
+
+.option p{
+margin:0 0 16px;
+color:#555;
+line-height:1.7;
+}
+
+.option button{
+width:100%;
+padding:12px 16px;
+font-size:16px;
+border:none;
+border-radius:8px;
+cursor:pointer;
+}
+
+.primary{
+background:#1f5f99;
+color:white;
+}
+
+.secondary{
+background:#2f6f44;
+color:white;
+}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+<div class="card">
+<h1>评分启动选择</h1>
+<p class="intro">启动系统后，先选择本次评分方式。你可以新建一轮，从第一条数据重新开始；也可以继续上次关闭前使用的数据表，不必重新建表。</p>
+
+<div class="status">
+{% if resume_table %}
+<div>上次使用的数据表：<strong>{{ resume_table }}</strong></div>
+<div>该表当前已提交数据：<strong>{{ resume_count }}</strong> 条</div>
+{% else %}
+<div>当前没有可继续的数据表记录，选择“继续上次”时会自动为你新建一轮。</div>
+{% endif %}
+</div>
+
+<div class="actions">
+<form class="option" method="post" action="/start_session">
+<input type="hidden" name="mode" value="new">
+<h2>从第一条重新开始</h2>
+<p>新建一个新的 MySQL 评分表，并从第一条数据重新领取任务。</p>
+<button class="primary" type="submit">新建轮次并开始</button>
+</form>
+
+<form class="option" method="post" action="/start_session">
+<input type="hidden" name="mode" value="resume">
+<h2>继续上次进度</h2>
+<p>继续使用上次关闭前的数据表，不新建表，直接从未完成的位置继续。</p>
+<button class="secondary" type="submit">继续上次</button>
+</form>
+</div>
+</div>
+</div>
+</body>
+
+</html>
