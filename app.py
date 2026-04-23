@@ -28,7 +28,7 @@ SCORING_RULES = load_json_file(SCORING_RULES_PATH)
 TAG_OPTIONS = load_json_file(TAG_OPTIONS_PATH)
 
 ID_DATA_MAP = {str(d["idx_id"]): d for d in ALL_DATA}
-ALL_IDS = list(ID_DATA_MAP.keys())
+ALL_IDS = [str(d["idx_id"]) for d in ALL_DATA]
 SCORE_DIMENSIONS = SCORING_RULES.get("评分维度", [])
 
 
@@ -57,11 +57,43 @@ def index():
 
 @app.route("/get_one")
 def get_one():
-    first_item = ALL_DATA[0]
-    return jsonify({
-        "data": first_item,
-        "remain": len(ALL_DATA)
-    })
+    conn = get_db()
+    try:
+        with conn.cursor() as cursor:
+            # 已提交过的 idx_id
+            cursor.execute(f"SELECT idx_id FROM {SCORE_TABLE}")
+            scored = {str(r["idx_id"]) for r in cursor.fetchall()}
+
+            # 已被领取但未提交的 idx_id
+            cursor.execute(f"SELECT idx_id FROM {LOCK_TABLE}")
+            locked = {str(r["idx_id"]) for r in cursor.fetchall()}
+
+            for idx in ALL_IDS:
+                if idx in scored or idx in locked:
+                    continue
+
+                try:
+                    # 尝试加锁，谁先插入成功谁拿到
+                    cursor.execute(
+                        f"INSERT INTO {LOCK_TABLE} (idx_id) VALUES (%s)",
+                        (idx,)
+                    )
+                    conn.commit()
+
+                    return jsonify({
+                        "data": ID_DATA_MAP[idx],
+                        "remain": len(ALL_IDS) - len(scored)
+                    })
+                except Exception:
+                    conn.rollback()
+                    continue
+
+            return jsonify(None)
+
+    except Exception as e:
+        return jsonify({"error": f"/get_one failed: {str(e)}"}), 500
+    finally:
+        conn.close()
 
 
 @app.route("/submit_score", methods=["POST"])
@@ -78,6 +110,21 @@ def submit_score():
     conn = get_db()
     try:
         with conn.cursor() as cursor:
+            # 如果已经提交过，直接删锁并返回成功，避免重复点按钮时报错
+            cursor.execute(
+                f"SELECT 1 FROM {SCORE_TABLE} WHERE idx_id=%s LIMIT 1",
+                (idx_id,)
+            )
+            exists = cursor.fetchone()
+
+            if exists:
+                cursor.execute(
+                    f"DELETE FROM {LOCK_TABLE} WHERE idx_id=%s",
+                    (idx_id,)
+                )
+                conn.commit()
+                return jsonify({"status": "success", "message": "该数据已提交过"})
+
             sql = f"""
             INSERT INTO {SCORE_TABLE}
             (
@@ -115,7 +162,11 @@ def submit_score():
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             ))
 
-            cursor.execute(f"DELETE FROM {LOCK_TABLE} WHERE idx_id=%s", (idx_id,))
+            # 提交成功后释放锁
+            cursor.execute(
+                f"DELETE FROM {LOCK_TABLE} WHERE idx_id=%s",
+                (idx_id,)
+            )
 
         conn.commit()
         return jsonify({"status": "success"})
@@ -133,8 +184,7 @@ def view_scores():
     try:
         with conn.cursor() as cursor:
             cursor.execute(f"SELECT * FROM {SCORE_TABLE} ORDER BY submitted_at DESC")
-            rows = cursor.fetchall()
-            return jsonify(rows)
+            return jsonify(cursor.fetchall())
     finally:
         conn.close()
 

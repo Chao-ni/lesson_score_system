@@ -165,6 +165,15 @@ function submitScore() {
   }
 
   const item = dataset[index]
+  if (!item || !item.idx_id) {
+    alert("当前没有可提交的数据，请刷新页面")
+    return
+  }
+
+  const submitBtn = document.getElementById("submitBtn")
+  submitBtn.disabled = true
+  submitBtn.innerText = "提交中..."
+
   const data = {
     idx_id: item.idx_id
   }
@@ -202,7 +211,6 @@ function submitScore() {
       return jsonData
     })
     .then(() => {
-      alert("提交成功")
       clearSelections()
       loadNext()
     })
@@ -210,8 +218,11 @@ function submitScore() {
       console.error("提交失败:", err)
       alert("提交失败：" + err.message)
     })
+    .finally(() => {
+      submitBtn.disabled = false
+      submitBtn.innerText = "提交评分"
+    })
 }
-
 
 function clearSelections() {
   selectedScores = {}
