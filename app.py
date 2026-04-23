@@ -53,6 +53,8 @@ def index():
         score_note=SCORING_RULES.get("评分说明", ""),
         tag_options=TAG_OPTIONS
     )
+
+
 @app.route("/get_one")
 def get_one():
     first_item = ALL_DATA[0]
@@ -60,6 +62,7 @@ def get_one():
         "data": first_item,
         "remain": len(ALL_DATA)
     })
+
 
 @app.route("/submit_score", methods=["POST"])
 def submit_score():
