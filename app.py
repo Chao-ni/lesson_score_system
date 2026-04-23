@@ -50,42 +50,48 @@ def index():
         score_note=SCORING_RULES.get("评分说明", ""),
         tag_options=TAG_OPTIONS
     )
-
-
 @app.route("/get_one")
 def get_one():
-    conn = get_db()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT idx_id FROM scores")
-            scored = {str(r["idx_id"]) for r in cursor.fetchall()}
+    first_item = ALL_DATA[0]
+    return jsonify({
+        "data": first_item,
+        "remain": len(ALL_DATA)
+    })
 
-            cursor.execute("SELECT idx_id FROM task_lock")
-            locked = {str(r["idx_id"]) for r in cursor.fetchall()}
-
-            for idx in ALL_IDS:
-                if idx in scored or idx in locked:
-                    continue
-
-                try:
-                    cursor.execute(
-                        "INSERT INTO task_lock (idx_id) VALUES (%s)",
-                        (idx,)
-                    )
-                    conn.commit()
-
-                    return jsonify({
-                        "data": ID_DATA_MAP[idx],
-                        "remain": len(ALL_IDS) - len(scored)
-                    })
-
-                except Exception:
-                    continue
-
-            return jsonify(None)
-
-    finally:
-        conn.close()
+# @app.route("/get_one")
+# def get_one():
+#     conn = get_db()
+#     try:
+#         with conn.cursor() as cursor:
+#             cursor.execute("SELECT idx_id FROM scores")
+#             scored = {str(r["idx_id"]) for r in cursor.fetchall()}
+#
+#             cursor.execute("SELECT idx_id FROM task_lock")
+#             locked = {str(r["idx_id"]) for r in cursor.fetchall()}
+#
+#             for idx in ALL_IDS:
+#                 if idx in scored or idx in locked:
+#                     continue
+#
+#                 try:
+#                     cursor.execute(
+#                         "INSERT INTO task_lock (idx_id) VALUES (%s)",
+#                         (idx,)
+#                     )
+#                     conn.commit()
+#
+#                     return jsonify({
+#                         "data": ID_DATA_MAP[idx],
+#                         "remain": len(ALL_IDS) - len(scored)
+#                     })
+#
+#                 except Exception:
+#                     continue
+#
+#             return jsonify(None)
+#
+#     finally:
+#         conn.close()
 
 
 @app.route("/submit_score", methods=["POST"])
