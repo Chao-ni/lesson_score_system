@@ -160,6 +160,35 @@ function validateScores() {
   return true
 }
 
+// function submitScore() {
+//   if (!validateScores()) {
+//     return
+//   }
+//
+//   const item = dataset[index]
+//   const data = {
+//     idx_id: item.idx_id
+//   }
+//
+//   for (let i = 1; i <= 7; i++) {
+//     data["s" + i] = selectedScores["s" + i]
+//     data["s" + i + "_tags"] = selectedTags["s" + i + "_tags"] || []
+//     data["m" + i] = recommendedScores["m" + i] || ""
+//   }
+//
+//   fetch("/submit_score", {
+//     method: "POST",
+//     headers: {
+//       "Content-Type": "application/json"
+//     },
+//     body: JSON.stringify(data)
+//   })
+//     .then(res => res.json())
+//     .then(() => {
+//       clearSelections()
+//       loadNext()
+//     })
+// }
 function submitScore() {
   if (!validateScores()) {
     return
@@ -176,6 +205,8 @@ function submitScore() {
     data["m" + i] = recommendedScores["m" + i] || ""
   }
 
+  console.log("准备提交的数据:", data)
+
   fetch("/submit_score", {
     method: "POST",
     headers: {
@@ -183,13 +214,33 @@ function submitScore() {
     },
     body: JSON.stringify(data)
   })
-    .then(res => res.json())
-    .then(() => {
+    .then(async res => {
+      const text = await res.text()
+      console.log("submit_score 返回:", res.status, text)
+
+      let jsonData = {}
+      try {
+        jsonData = JSON.parse(text)
+      } catch (e) {
+        throw new Error("后端返回的不是 JSON: " + text)
+      }
+
+      if (!res.ok) {
+        throw new Error(jsonData.message || jsonData.error || "提交失败")
+      }
+
+      return jsonData
+    })
+    .then(result => {
+      alert("提交成功")
       clearSelections()
       loadNext()
     })
+    .catch(err => {
+      console.error("提交失败:", err)
+      alert("提交失败：" + err.message)
+    })
 }
-
 function clearSelections() {
   selectedScores = {}
   selectedTags = {}
