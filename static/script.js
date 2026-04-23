@@ -159,36 +159,6 @@ function validateScores() {
 
   return true
 }
-
-// function submitScore() {
-//   if (!validateScores()) {
-//     return
-//   }
-//
-//   const item = dataset[index]
-//   const data = {
-//     idx_id: item.idx_id
-//   }
-//
-//   for (let i = 1; i <= 7; i++) {
-//     data["s" + i] = selectedScores["s" + i]
-//     data["s" + i + "_tags"] = selectedTags["s" + i + "_tags"] || []
-//     data["m" + i] = recommendedScores["m" + i] || ""
-//   }
-//
-//   fetch("/submit_score", {
-//     method: "POST",
-//     headers: {
-//       "Content-Type": "application/json"
-//     },
-//     body: JSON.stringify(data)
-//   })
-//     .then(res => res.json())
-//     .then(() => {
-//       clearSelections()
-//       loadNext()
-//     })
-// }
 function submitScore() {
   if (!validateScores()) {
     return
@@ -231,7 +201,7 @@ function submitScore() {
 
       return jsonData
     })
-    .then(result => {
+    .then(() => {
       alert("提交成功")
       clearSelections()
       loadNext()
@@ -241,6 +211,8 @@ function submitScore() {
       alert("提交失败：" + err.message)
     })
 }
+
+
 function clearSelections() {
   selectedScores = {}
   selectedTags = {}

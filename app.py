@@ -12,6 +12,9 @@ JSON_PATH = os.path.join(BASE_DIR, "all_generated_predictions_extracted_merged_d
 SCORING_RULES_PATH = os.path.join(BASE_DIR, "评分准则.json")
 TAG_OPTIONS_PATH = os.path.join(BASE_DIR, "概括词.json")
 
+SCORE_TABLE = "scoredb"
+LOCK_TABLE = "task_lockdb"
+
 
 def load_json_file(path):
     if not os.path.exists(path):
@@ -50,48 +53,43 @@ def index():
         score_note=SCORING_RULES.get("评分说明", ""),
         tag_options=TAG_OPTIONS
     )
+
+
 @app.route("/get_one")
 def get_one():
-    first_item = ALL_DATA[0]
-    return jsonify({
-        "data": first_item,
-        "remain": len(ALL_DATA)
-    })
+    conn = get_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(f"SELECT idx_id FROM {SCORE_TABLE}")
+            scored = {str(r["idx_id"]) for r in cursor.fetchall()}
 
-# @app.route("/get_one")
-# def get_one():
-#     conn = get_db()
-#     try:
-#         with conn.cursor() as cursor:
-#             cursor.execute("SELECT idx_id FROM scores")
-#             scored = {str(r["idx_id"]) for r in cursor.fetchall()}
-#
-#             cursor.execute("SELECT idx_id FROM task_lock")
-#             locked = {str(r["idx_id"]) for r in cursor.fetchall()}
-#
-#             for idx in ALL_IDS:
-#                 if idx in scored or idx in locked:
-#                     continue
-#
-#                 try:
-#                     cursor.execute(
-#                         "INSERT INTO task_lock (idx_id) VALUES (%s)",
-#                         (idx,)
-#                     )
-#                     conn.commit()
-#
-#                     return jsonify({
-#                         "data": ID_DATA_MAP[idx],
-#                         "remain": len(ALL_IDS) - len(scored)
-#                     })
-#
-#                 except Exception:
-#                     continue
-#
-#             return jsonify(None)
-#
-#     finally:
-#         conn.close()
+            cursor.execute(f"SELECT idx_id FROM {LOCK_TABLE}")
+            locked = {str(r["idx_id"]) for r in cursor.fetchall()}
+
+            for idx in ALL_IDS:
+                if idx in scored or idx in locked:
+                    continue
+
+                try:
+                    cursor.execute(
+                        f"INSERT INTO {LOCK_TABLE} (idx_id) VALUES (%s)",
+                        (idx,)
+                    )
+                    conn.commit()
+
+                    return jsonify({
+                        "data": ID_DATA_MAP[idx],
+                        "remain": len(ALL_IDS) - len(scored)
+                    })
+                except Exception:
+                    continue
+
+            return jsonify(None)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route("/submit_score", methods=["POST"])
@@ -108,8 +106,8 @@ def submit_score():
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            sql = """
-            INSERT INTO scores
+            sql = f"""
+            INSERT INTO {SCORE_TABLE}
             (
                 idx_id,
                 s1, s1_tags, m1,
@@ -145,10 +143,11 @@ def submit_score():
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             ))
 
-            cursor.execute("DELETE FROM task_lock WHERE idx_id=%s", (idx_id,))
+            cursor.execute(f"DELETE FROM {LOCK_TABLE} WHERE idx_id=%s", (idx_id,))
 
         conn.commit()
         return jsonify({"status": "success"})
+
     except Exception as e:
         conn.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -161,7 +160,7 @@ def view_scores():
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT * FROM scores ORDER BY submitted_at DESC")
+            cursor.execute(f"SELECT * FROM {SCORE_TABLE} ORDER BY submitted_at DESC")
             rows = cursor.fetchall()
             return jsonify(rows)
     finally:
